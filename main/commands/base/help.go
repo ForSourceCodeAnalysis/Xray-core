@@ -39,8 +39,10 @@ Args:
 	}
 
 	if len(cmd.Commands) > 0 {
+		//这个适用于有子命令的命令
 		PrintUsage(os.Stdout, cmd)
 	} else {
+		//这个适用于没有子命令的命令
 		buildCommandText(cmd)
 		tmpl(os.Stdout, helpTemplate, makeTmplData(cmd))
 	}
@@ -90,10 +92,13 @@ func (w *errWriter) Write(b []byte) (int, error) {
 }
 
 // tmpl executes the given template text on data, writing the result to w.
+// 模板处理
 func tmpl(w io.Writer, text string, data interface{}) {
 	t := template.New("top")
 	t.Funcs(template.FuncMap{"trim": strings.TrimSpace, "capitalize": capitalize, "width": width})
 	template.Must(t.Parse(text))
+	//感觉这里搞得有点复杂了，Execute本身第一个参数就是io.Writer，且失败就会返回错误，
+	//没必要再封装一层
 	ew := &errWriter{w: w}
 	err := t.Execute(ew, data)
 	if ew.err != nil {

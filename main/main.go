@@ -22,10 +22,12 @@ func main() {
 	base.Execute()
 }
 
+// 如果直接运行命令，没有任何参数，会默认补齐run命令
 func getArgsV4Compatible() []string {
 	if len(os.Args) == 1 {
 		return []string{os.Args[0], "run"}
 	}
+	//如果第二个参数不是flag参数，就认为是命令
 	if os.Args[1][0] != '-' {
 		return os.Args
 	}

@@ -15,7 +15,11 @@ import (
 // Execute excute the commands
 func Execute() {
 	flag.Parse()
+	//flag.Args()返回的是没有通过flag定义的命令行参数，不包含命令本身
+	//os.Args是一个[]string，包含所有的命令行参数，且包含命令本身
+	//flag.Args()是从os.Args[1:]解析出的参数，所以修改os.Args会改变flag.Args()的输出
 	args := flag.Args()
+	//由于前面做了处理，没有任何参数的情况下会补齐run命令，所以这里不会进入
 	if len(args) < 1 {
 		PrintUsage(os.Stderr, RootCommand)
 		return
