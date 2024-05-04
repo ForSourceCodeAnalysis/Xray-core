@@ -233,6 +233,7 @@ func (c *InboundDetourConfig) Build() (*core.InboundHandlerConfig, error) {
 		}
 		receiverSettings.AllocationStrategy = as
 	}
+	//底层传输方式
 	if c.StreamSetting != nil {
 		ss, err := c.StreamSetting.Build()
 		if err != nil {
@@ -240,6 +241,7 @@ func (c *InboundDetourConfig) Build() (*core.InboundHandlerConfig, error) {
 		}
 		receiverSettings.StreamSettings = ss
 	}
+	//流量嗅探
 	if c.SniffingConfig != nil {
 		s, err := c.SniffingConfig.Build()
 		if err != nil {
@@ -259,10 +261,12 @@ func (c *InboundDetourConfig) Build() (*core.InboundHandlerConfig, error) {
 	if c.Settings != nil {
 		settings = ([]byte)(*c.Settings)
 	}
+	//settings配置是和具体协议绑定的，所以这里要将Protocol传过去
 	rawConfig, err := inboundConfigLoader.LoadWithID(settings, c.Protocol)
 	if err != nil {
 		return nil, newError("failed to load inbound detour config.").Base(err)
 	}
+	//dokodemoconfig需要特殊处理
 	if dokodemoConfig, ok := rawConfig.(*DokodemoConfig); ok {
 		receiverSettings.ReceiveOriginalDestination = dokodemoConfig.Redirect
 	}
@@ -381,6 +385,7 @@ func (c *StatsConfig) Build() (*stats.Config, error) {
 	return &stats.Config{}, nil
 }
 
+// 这个配置就是面向用户的配置，程序会根据这个配置创建 core.Config 配置
 type Config struct {
 	// Port of this Point server.
 	// Deprecated: Port exists for historical compatibility
@@ -560,11 +565,13 @@ func applyTransportConfig(s *StreamConfig, t *TransportConfig) {
 }
 
 // Build implements Buildable.
+// 将Config转化为core.Config
 func (c *Config) Build() (*core.Config, error) {
 	if err := PostProcessConfigureFile(c); err != nil {
 		return nil, err
 	}
 
+	//App里面包含了除Inbound和OutBound的所有配置
 	config := &core.Config{
 		App: []*serial.TypedMessage{
 			serial.ToTypedMessage(&dispatcher.Config{}),
@@ -572,7 +579,7 @@ func (c *Config) Build() (*core.Config, error) {
 			serial.ToTypedMessage(&proxyman.OutboundConfig{}),
 		},
 	}
-
+	//api配置
 	if c.API != nil {
 		apiConf, err := c.API.Build()
 		if err != nil {
@@ -580,6 +587,7 @@ func (c *Config) Build() (*core.Config, error) {
 		}
 		config.App = append(config.App, serial.ToTypedMessage(apiConf))
 	}
+	//统计元数据
 	if c.Metrics != nil {
 		metricsConf, err := c.Metrics.Build()
 		if err != nil {
@@ -587,6 +595,7 @@ func (c *Config) Build() (*core.Config, error) {
 		}
 		config.App = append(config.App, serial.ToTypedMessage(metricsConf))
 	}
+	//统计
 	if c.Stats != nil {
 		statsConf, err := c.Stats.Build()
 		if err != nil {
@@ -595,6 +604,7 @@ func (c *Config) Build() (*core.Config, error) {
 		config.App = append(config.App, serial.ToTypedMessage(statsConf))
 	}
 
+	//日志
 	var logConfMsg *serial.TypedMessage
 	if c.LogConfig != nil {
 		logConfMsg = serial.ToTypedMessage(c.LogConfig.Build())
@@ -605,6 +615,7 @@ func (c *Config) Build() (*core.Config, error) {
 	// so that other modules could print log during initiating
 	config.App = append([]*serial.TypedMessage{logConfMsg}, config.App...)
 
+	//路由
 	if c.RouterConfig != nil {
 		routerConfig, err := c.RouterConfig.Build()
 		if err != nil {
@@ -613,6 +624,7 @@ func (c *Config) Build() (*core.Config, error) {
 		config.App = append(config.App, serial.ToTypedMessage(routerConfig))
 	}
 
+	//dns
 	if c.DNSConfig != nil {
 		dnsApp, err := c.DNSConfig.Build()
 		if err != nil {
@@ -620,7 +632,7 @@ func (c *Config) Build() (*core.Config, error) {
 		}
 		config.App = append(config.App, serial.ToTypedMessage(dnsApp))
 	}
-
+	//本地策略
 	if c.Policy != nil {
 		pc, err := c.Policy.Build()
 		if err != nil {
@@ -629,6 +641,7 @@ func (c *Config) Build() (*core.Config, error) {
 		config.App = append(config.App, serial.ToTypedMessage(pc))
 	}
 
+	//反向代理
 	if c.Reverse != nil {
 		r, err := c.Reverse.Build()
 		if err != nil {
@@ -637,6 +650,7 @@ func (c *Config) Build() (*core.Config, error) {
 		config.App = append(config.App, serial.ToTypedMessage(r))
 	}
 
+	//伪dns
 	if c.FakeDNS != nil {
 		r, err := c.FakeDNS.Build()
 		if err != nil {
@@ -645,6 +659,7 @@ func (c *Config) Build() (*core.Config, error) {
 		config.App = append([]*serial.TypedMessage{serial.ToTypedMessage(r)}, config.App...)
 	}
 
+	//文档中没有介绍，意义还不明确
 	if c.Observatory != nil {
 		r, err := c.Observatory.Build()
 		if err != nil {
@@ -652,7 +667,7 @@ func (c *Config) Build() (*core.Config, error) {
 		}
 		config.App = append(config.App, serial.ToTypedMessage(r))
 	}
-
+	//文档中没有介绍，意义还不明确
 	if c.BurstObservatory != nil {
 		r, err := c.BurstObservatory.Build()
 		if err != nil {
@@ -661,6 +676,7 @@ func (c *Config) Build() (*core.Config, error) {
 		config.App = append(config.App, serial.ToTypedMessage(r))
 	}
 
+	//入站配置，比较重要
 	var inbounds []InboundDetourConfig
 
 	if c.InboundConfig != nil {
@@ -670,7 +686,7 @@ func (c *Config) Build() (*core.Config, error) {
 	if len(c.InboundDetours) > 0 {
 		inbounds = append(inbounds, c.InboundDetours...)
 	}
-
+	//新版本使用的是这个字段
 	if len(c.InboundConfigs) > 0 {
 		inbounds = append(inbounds, c.InboundConfigs...)
 	}
@@ -682,7 +698,7 @@ func (c *Config) Build() (*core.Config, error) {
 			To:   uint32(c.Port),
 		}}}
 	}
-
+	//
 	for _, rawInboundConfig := range inbounds {
 		if c.Transport != nil {
 			if rawInboundConfig.StreamSetting == nil {
@@ -696,7 +712,7 @@ func (c *Config) Build() (*core.Config, error) {
 		}
 		config.Inbound = append(config.Inbound, ic)
 	}
-
+	//出站配置，重要
 	var outbounds []OutboundDetourConfig
 
 	if c.OutboundConfig != nil {

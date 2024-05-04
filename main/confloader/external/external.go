@@ -19,6 +19,7 @@ import (
 func ConfigLoader(arg string) (out io.Reader, err error) {
 	var data []byte
 	switch {
+	//从这里可以看出，支持加载网络配置文件
 	case strings.HasPrefix(arg, "http://"), strings.HasPrefix(arg, "https://"):
 		data, err = FetchHTTPContent(arg)
 
@@ -32,6 +33,10 @@ func ConfigLoader(arg string) (out io.Reader, err error) {
 	if err != nil {
 		return
 	}
+	//bytes.NewBuffer(data)函数则是创建一个新的bytes.Buffer对象，它是一个可变大小的缓冲区，可以随着需要增长。
+	//你可以向其中写入数据，或者从中读取数据。
+	//最主要的是bytes.Buffer对象实现了io.Reader和io.Writer接口，这意味着它可以用于任何需要这两个接口的操作中。
+	//因此，out := bytes.NewBuffer(data)这行代码的意思是将data变量中的字节切片的内容存储到一个新的bytes.Buffer对象中，这样就可以对这个对象进行后续的处理了
 	out = bytes.NewBuffer(data)
 	return
 }

@@ -181,16 +181,16 @@ func NewWithContext(ctx context.Context, config *Config) (*Instance, error) {
 }
 
 func initInstanceWithConfig(config *Config, server *Instance) (bool, error) {
-	server.ctx = context.WithValue(server.ctx, "cone", 
+	server.ctx = context.WithValue(server.ctx, "cone",
 		platform.NewEnvFlag(platform.UseCone).GetValue(func() string { return "" }) != "true")
-
+	//Transport字段已经废弃了，移到了每个inbound和outbound里面
 	if config.Transport != nil {
 		features.PrintDeprecatedFeatureWarning("global transport settings")
 	}
 	if err := config.Transport.Apply(); err != nil {
 		return true, err
 	}
-
+	//App中包含了除inbound和outbound的所有配置，由于不是必须配置，可以后面再分析
 	for _, appSettings := range config.App {
 		settings, err := appSettings.GetInstance()
 		if err != nil {

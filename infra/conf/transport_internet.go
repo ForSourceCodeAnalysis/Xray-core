@@ -765,8 +765,9 @@ type StreamConfig struct {
 // Build implements Buildable.
 func (c *StreamConfig) Build() (*internet.StreamConfig, error) {
 	config := &internet.StreamConfig{
-		ProtocolName: "tcp",
+		ProtocolName: "tcp", //默认tcp，支持"tcp" | "ws" | "h2" | "grpc" | "quic" | "kcp" | "httpupgrade"
 	}
+	//协议类型
 	if c.Network != nil {
 		protocol, err := c.Network.Build()
 		if err != nil {
@@ -774,6 +775,7 @@ func (c *StreamConfig) Build() (*internet.StreamConfig, error) {
 		}
 		config.ProtocolName = protocol
 	}
+	//加密设置
 	switch strings.ToLower(c.Security) {
 	case "", "none":
 	case "tls":
@@ -807,6 +809,7 @@ func (c *StreamConfig) Build() (*internet.StreamConfig, error) {
 	default:
 		return nil, newError(`Unknown security "` + c.Security + `".`)
 	}
+	//如果上面的协议类型选了tcp，这里就需要配置
 	if c.TCPSettings != nil {
 		ts, err := c.TCPSettings.Build()
 		if err != nil {

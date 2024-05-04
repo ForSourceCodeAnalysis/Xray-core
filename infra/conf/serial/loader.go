@@ -45,7 +45,14 @@ func findOffset(b []byte, o int) *offset {
 func DecodeJSONConfig(reader io.Reader) (*conf.Config, error) {
 	jsonConfig := &conf.Config{}
 
+	//最大支持1m左右的配置
 	jsonContent := bytes.NewBuffer(make([]byte, 0, 10240))
+
+	//TeeReader根据输入的io.Reader创建一个新的Reader，并将内容同时写入到指定的io.Writer中
+	//这有什么用呢，直接把内容给io.Writer不可以吗？
+	//不可以。仔细阅读其功能描述就可以发现，旧的io.Reader内容其实复制了两次，一次是io.Writer，
+	//另一次是新的io.Reader，如果直接复制给io.Writer，旧的io.Reader内容其实已经被清空了，无法再次使用
+	//所以根本的原因就是，想读取io.Reader后，还想继续使用io.Reader
 	jsonReader := io.TeeReader(&json_reader.Reader{
 		Reader: reader,
 	}, jsonContent)

@@ -42,6 +42,7 @@ func NewJSONConfigLoader(cache ConfigCreatorCache, idKey string, configKey strin
 
 func (v *JSONConfigLoader) LoadWithID(raw []byte, id string) (interface{}, error) {
 	id = strings.ToLower(id)
+	//返回的是一个具体协议的结构体实例，比如vless，返回的就是VLessInboundConfig
 	config, err := v.cache.CreateConfig(id)
 	if err != nil {
 		return nil, err

@@ -21,6 +21,7 @@ func MergeConfigFromFiles(files []string, formats []string) (string, error) {
 	return "", newError("marshal to json failed.").AtError()
 }
 
+// 合并配置文件，不过一般情况下都是只有一个配置文件
 func mergeConfigs(files []string, formats []string) (*conf.Config, error) {
 	cf := &conf.Config{}
 	for i, file := range files {

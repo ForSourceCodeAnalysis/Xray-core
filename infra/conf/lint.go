@@ -6,6 +6,7 @@ type ConfigureFilePostProcessingStage interface {
 
 var configureFilePostProcessingStages map[string]ConfigureFilePostProcessingStage
 
+// 此函数只被调用了一次，注册了一个 FakeDNS
 func RegisterConfigureFilePostProcessingStage(name string, stage ConfigureFilePostProcessingStage) {
 	if configureFilePostProcessingStages == nil {
 		configureFilePostProcessingStages = make(map[string]ConfigureFilePostProcessingStage)
