@@ -190,7 +190,21 @@ func initInstanceWithConfig(config *Config, server *Instance) (bool, error) {
 	if err := config.Transport.Apply(); err != nil {
 		return true, err
 	}
-	//App中包含了除inbound和outbound的所有配置，由于不是必须配置，可以后面再分析
+	//App中包含了除inbound和outbound的所有配置
+	// LogConfig        *LogConfig              `json:"log"`
+	// RouterConfig     *RouterConfig           `json:"routing"`
+	// DNSConfig        *DNSConfig              `json:"dns"`
+	// InboundConfigs   []InboundDetourConfig   `json:"inbounds"`
+	// OutboundConfigs  []OutboundDetourConfig  `json:"outbounds"`
+	// Transport        *TransportConfig        `json:"transport"`
+	// Policy           *PolicyConfig           `json:"policy"`
+	// API              *APIConfig              `json:"api"`
+	// Metrics          *MetricsConfig          `json:"metrics"`
+	// Stats            *StatsConfig            `json:"stats"`
+	// Reverse          *ReverseConfig          `json:"reverse"`
+	// FakeDNS          *FakeDNSConfig          `json:"fakeDns"`
+	// Observatory      *ObservatoryConfig      `json:"observatory"`
+	// BurstObservatory *BurstObservatoryConfig `json:"burstObservatory"`
 	for _, appSettings := range config.App {
 		settings, err := appSettings.GetInstance()
 		if err != nil {
@@ -200,6 +214,7 @@ func initInstanceWithConfig(config *Config, server *Instance) (bool, error) {
 		if err != nil {
 			return true, err
 		}
+
 		if feature, ok := obj.(features.Feature); ok {
 			if err := server.AddFeature(feature); err != nil {
 				return true, err

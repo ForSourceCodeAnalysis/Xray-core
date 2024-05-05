@@ -210,6 +210,8 @@ func getConfigFormat() string {
 	return f
 }
 
+// 这里并没有启动任何服务，只是加载了配置，实例化了核心服务
+// 实际的服务启动是server里面的features依次调用start()进行启动的
 func startXray() (core.Server, error) {
 	configFiles := getConfigFilePath(true)
 
