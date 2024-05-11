@@ -20,6 +20,10 @@ func RegisterConfig(config interface{}, configCreator ConfigCreator) error {
 	return nil
 }
 
+// typeCreatorRegistry会在每个模块对应的init函数中
+// 通过调用RegisterConfig初始化对于的模块映射
+// 比如log模块，就是在app\log\log.go里面初始化的
+// 每个模块对应的creator不尽相同，需要查看对应的模块代码
 // CreateObject creates an object by its config. The config type must be registered through RegisterConfig().
 func CreateObject(ctx context.Context, config interface{}) (interface{}, error) {
 	configType := reflect.TypeOf(config)

@@ -191,30 +191,17 @@ func initInstanceWithConfig(config *Config, server *Instance) (bool, error) {
 		return true, err
 	}
 	//App中包含了除inbound和outbound的所有配置
-	// LogConfig        *LogConfig              `json:"log"`
-	// RouterConfig     *RouterConfig           `json:"routing"`
-	// DNSConfig        *DNSConfig              `json:"dns"`
-	// InboundConfigs   []InboundDetourConfig   `json:"inbounds"`
-	// OutboundConfigs  []OutboundDetourConfig  `json:"outbounds"`
-	// Transport        *TransportConfig        `json:"transport"`
-	// Policy           *PolicyConfig           `json:"policy"`
-	// API              *APIConfig              `json:"api"`
-	// Metrics          *MetricsConfig          `json:"metrics"`
-	// Stats            *StatsConfig            `json:"stats"`
-	// Reverse          *ReverseConfig          `json:"reverse"`
-	// FakeDNS          *FakeDNSConfig          `json:"fakeDns"`
-	// Observatory      *ObservatoryConfig      `json:"observatory"`
-	// BurstObservatory *BurstObservatoryConfig `json:"burstObservatory"`
 	for _, appSettings := range config.App {
 		settings, err := appSettings.GetInstance()
 		if err != nil {
 			return true, err
 		}
+		//根据具体的配置项，创建对应的对象
 		obj, err := CreateObject(server, settings)
 		if err != nil {
 			return true, err
 		}
-
+		//features.Feature是一个接口，只要实现了Type()和Start()就可以
 		if feature, ok := obj.(features.Feature); ok {
 			if err := server.AddFeature(feature); err != nil {
 				return true, err
@@ -222,6 +209,7 @@ func initInstanceWithConfig(config *Config, server *Instance) (bool, error) {
 		}
 	}
 
+	//额外的一些特性
 	essentialFeatures := []struct {
 		Type     interface{}
 		Instance features.Feature

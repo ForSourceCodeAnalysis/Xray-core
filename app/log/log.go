@@ -12,6 +12,8 @@ import (
 
 // Instance is a log.Handler that handles logs.
 type Instance struct {
+	//读写锁更多的是用在多读少些场景的，对于日志，写可能更多些，
+	//而且程序本身应该不会去读日志，所以这里直接用互斥锁是否更合适
 	sync.RWMutex
 	config       *Config
 	accessLogger log.Handler
