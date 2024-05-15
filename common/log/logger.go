@@ -36,8 +36,8 @@ type serverityLogger struct {
 func NewLogger(logWriterCreator WriterCreator) Handler {
 	return &generalLogger{
 		creator: logWriterCreator,
-		buffer:  make(chan Message, 16),
-		access:  semaphore.New(1),
+		buffer:  make(chan Message, 16), //缓存
+		access:  semaphore.New(1),       //信号通道
 		done:    done.New(),
 	}
 }
@@ -69,9 +69,11 @@ func (l *serverityLogger) Handle(msg Message) {
 }
 
 func (l *generalLogger) run() {
+	//如果程序异常退出了，这里还会再发送一次token，执行到给Handle时，会再次进入这里
 	defer l.access.Signal()
 
 	dataWritten := false
+	//设置1min定时
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 
@@ -79,15 +81,20 @@ func (l *generalLogger) run() {
 	if logger == nil {
 		return
 	}
+	//执行出现异常，关闭日志流（一般是文件流）
 	defer logger.Close()
 
 	for {
 		select {
+		//是否已关闭
 		case <-l.done.Wait():
 			return
+		//正常日志写入，是从缓存中读取的，在一个循环中可能命中多次
 		case msg := <-l.buffer:
 			logger.Write(msg.String() + platform.LineSeparator())
 			dataWritten = true
+		//如果没有日志写入了，说明缓存已经读取完了，返回
+		//如果还有日志写入，就继续循环，等待下一个定时触发
 		case <-ticker.C:
 			if !dataWritten {
 				return
@@ -105,8 +112,9 @@ func (l *generalLogger) Handle(msg Message) {
 	}
 
 	select {
+	//access在初始化时，就会向通道发送一次token，所以这里能够命中，后面如果没有继续发送token，这里也就只会执行一次
 	case <-l.access.Wait():
-		go l.run()
+		go l.run() //这里启动了一个协程
 	default:
 	}
 }

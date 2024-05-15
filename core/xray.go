@@ -97,7 +97,9 @@ type Instance struct {
 }
 
 func AddInboundHandler(server *Instance, config *InboundHandlerConfig) error {
+	//inboundManager就是app\proxyman\inbound\inbound.go里面的Manager
 	inboundManager := server.GetFeature(inbound.ManagerType()).(inbound.Manager)
+	//handler就是app\proxyman\inbound\inbound.go里面NewHandler()方法返回的
 	rawHandler, err := CreateObject(server, config)
 	if err != nil {
 		return err
@@ -113,6 +115,7 @@ func AddInboundHandler(server *Instance, config *InboundHandlerConfig) error {
 }
 
 func addInboundHandlers(server *Instance, configs []*InboundHandlerConfig) error {
+	//循环处理configs，每个inboundConfig都会加入到server里面
 	for _, inboundConfig := range configs {
 		if err := AddInboundHandler(server, inboundConfig); err != nil {
 			return err

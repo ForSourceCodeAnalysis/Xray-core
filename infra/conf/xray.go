@@ -165,6 +165,7 @@ func (c *InboundDetourAllocationConfig) Build() (*proxyman.AllocationStrategy, e
 	return config, nil
 }
 
+// 入站配置，与配置文件里面的项对应
 type InboundDetourConfig struct {
 	Protocol       string                         `json:"protocol"`
 	PortList       *PortList                      `json:"port"`
@@ -178,6 +179,7 @@ type InboundDetourConfig struct {
 }
 
 // Build implements Buildable.
+// 配置文件
 func (c *InboundDetourConfig) Build() (*core.InboundHandlerConfig, error) {
 	receiverSettings := &proxyman.ReceiverConfig{}
 
@@ -262,6 +264,8 @@ func (c *InboundDetourConfig) Build() (*core.InboundHandlerConfig, error) {
 		settings = ([]byte)(*c.Settings)
 	}
 	//settings配置是和具体协议绑定的，所以这里要将Protocol传过去
+	//rawConfig就是具体协议的InboundConfig，比如设置的是vmess，rawConfig就是
+	//VMessInboundConfig类型(infra\conf\vmess.go)
 	rawConfig, err := inboundConfigLoader.LoadWithID(settings, c.Protocol)
 	if err != nil {
 		return nil, newError("failed to load inbound detour config.").Base(err)
@@ -575,8 +579,8 @@ func (c *Config) Build() (*core.Config, error) {
 	config := &core.Config{
 		App: []*serial.TypedMessage{
 			serial.ToTypedMessage(&dispatcher.Config{}),
-			serial.ToTypedMessage(&proxyman.InboundConfig{}),
-			serial.ToTypedMessage(&proxyman.OutboundConfig{}),
+			serial.ToTypedMessage(&proxyman.InboundConfig{}),  //入站配置管理
+			serial.ToTypedMessage(&proxyman.OutboundConfig{}), //出站配置管理
 		},
 	}
 	//api配置
@@ -710,7 +714,7 @@ func (c *Config) Build() (*core.Config, error) {
 		if err != nil {
 			return nil, err
 		}
-		config.Inbound = append(config.Inbound, ic)
+		config.Inbound = append(config.Inbound, ic) //实际的入站配置
 	}
 	//出站配置，重要
 	var outbounds []OutboundDetourConfig

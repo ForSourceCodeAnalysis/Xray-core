@@ -12,12 +12,12 @@ import (
 
 // Instance is a log.Handler that handles logs.
 type Instance struct {
-	//读写锁更多的是用在多读少些场景的，对于日志，写可能更多些，
-	//而且程序本身应该不会去读日志，所以这里直接用互斥锁是否更合适
+	//这里的读写锁不是针对日志文件的，而是针对Instance本身的
+	//也就是说控制的是Instance的读写，而不是日志，这一点要搞清楚
 	sync.RWMutex
-	config       *Config
-	accessLogger log.Handler
-	errorLogger  log.Handler
+	config       *Config     //日志等级类型配置
+	accessLogger log.Handler //访问日志处理实现
+	errorLogger  log.Handler //错误日志处理实现
 	active       bool
 	dns          bool
 }
@@ -41,6 +41,7 @@ func New(ctx context.Context, config *Config) (*Instance, error) {
 	return g, nil
 }
 
+// 初始化访问日志处理
 func (g *Instance) initAccessLogger() error {
 	handler, err := createHandler(g.config.AccessLogType, HandlerCreatorOptions{
 		Path: g.config.AccessLogPath,
@@ -48,10 +49,12 @@ func (g *Instance) initAccessLogger() error {
 	if err != nil {
 		return err
 	}
+	//这个handler就是common\log\logger.go里面的generalLogger的实例
 	g.accessLogger = handler
 	return nil
 }
 
+// 初始化错误日志处理
 func (g *Instance) initErrorLogger() error {
 	handler, err := createHandler(g.config.ErrorLogType, HandlerCreatorOptions{
 		Path: g.config.ErrorLogPath,
@@ -69,7 +72,7 @@ func (*Instance) Type() interface{} {
 }
 
 func (g *Instance) startInternal() error {
-	g.Lock()
+	g.Lock() //这里用的互斥锁，因为会改变g（元素）的值
 	defer g.Unlock()
 
 	if g.active {
@@ -95,13 +98,13 @@ func (g *Instance) Start() error {
 
 // Handle implements log.Handler.
 func (g *Instance) Handle(msg log.Message) {
-	g.RLock()
+	g.RLock() //这里是读锁，因为这里并没有改变g的值，所以读锁就可以了
 	defer g.RUnlock()
 
 	if !g.active {
 		return
 	}
-
+	//具体日志类型的处理，最后都是通过调用common\log\logger.go里面的generalLogger.Handle()实现的
 	switch msg := msg.(type) {
 	case *log.AccessMessage:
 		if g.accessLogger != nil {

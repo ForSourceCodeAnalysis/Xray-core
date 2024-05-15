@@ -152,14 +152,14 @@ func NewHandler(ctx context.Context, config *core.InboundHandlerConfig) (inbound
 	if !ok {
 		return nil, newError("not a ReceiverConfig").AtError()
 	}
-
+	//底层传输配置
 	streamSettings := receiverSettings.StreamSettings
 	if streamSettings != nil && streamSettings.SocketSettings != nil {
 		ctx = session.ContextWithSockopt(ctx, &session.Sockopt{
 			Mark: streamSettings.SocketSettings.Mark,
 		})
 	}
-
+	//多端口时的分配策略
 	allocStrategy := receiverSettings.AllocationStrategy
 	if allocStrategy == nil || allocStrategy.Type == proxyman.AllocationStrategy_Always {
 		return NewAlwaysOnInboundHandler(ctx, tag, receiverSettings, proxySettings)

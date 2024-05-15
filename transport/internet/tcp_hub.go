@@ -37,6 +37,7 @@ func ListenUnix(ctx context.Context, address net.Address, settings *MemoryStream
 	}
 
 	protocol := settings.ProtocolName
+	//根据不同的协议获取对应的创建listener的方法
 	listenFunc := transportListenerCache[protocol]
 	if listenFunc == nil {
 		return nil, newError(protocol, " unix istener not registered.").AtError()

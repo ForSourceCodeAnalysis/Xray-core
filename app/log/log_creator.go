@@ -45,6 +45,7 @@ func init() {
 		return log.NewLogger(log.CreateStdoutLogWriter()), nil
 	}))
 
+	//日志输出默认是文件形式
 	common.Must(RegisterHandlerCreator(LogType_File, func(lt LogType, options HandlerCreatorOptions) (log.Handler, error) {
 		creator, err := log.CreateFileLogWriter(options.Path)
 		if err != nil {

@@ -48,7 +48,11 @@ type AlwaysOnInboundHandler struct {
 	tag     string
 }
 
+// proxyConfig与具体的协议相关，比如配置的vmess，proxyConfig就是VMessInboundConfig，
+// 对应的CreateObject里面的creator是在这里注册的 proxy\vmess\inbound\inbound.go
+// proxyConfig就相当于配置文件中的inbound.settings
 func NewAlwaysOnInboundHandler(ctx context.Context, tag string, receiverConfig *proxyman.ReceiverConfig, proxyConfig interface{}) (*AlwaysOnInboundHandler, error) {
+	//rawProxy是proxy\vmess\inbound\inbound.go里面的Handler实例（这里以vmess为例分析）
 	rawProxy, err := common.CreateObject(ctx, proxyConfig)
 	if err != nil {
 		return nil, err
@@ -60,15 +64,15 @@ func NewAlwaysOnInboundHandler(ctx context.Context, tag string, receiverConfig *
 
 	h := &AlwaysOnInboundHandler{
 		proxy: p,
-		mux:   mux.NewServer(ctx),
+		mux:   mux.NewServer(ctx), //调度器
 		tag:   tag,
 	}
 
 	uplinkCounter, downlinkCounter := getStatCounter(core.MustFromContext(ctx), tag)
 
-	nl := p.Network()
-	pl := receiverConfig.PortList
-	address := receiverConfig.Listen.AsAddress()
+	nl := p.Network()                            //支持的网络类型
+	pl := receiverConfig.PortList                //端口列表
+	address := receiverConfig.Listen.AsAddress() //监听地址
 	if address == nil {
 		address = net.AnyIP
 	}
@@ -87,13 +91,14 @@ func NewAlwaysOnInboundHandler(ctx context.Context, tag string, receiverConfig *
 		}
 		mss.SocketSettings.ReceiveOriginalDestAddress = true
 	}
+	//没设置端口的情况下，使用unix socket监听
 	if pl == nil {
 		if net.HasNetwork(nl, net.Network_UNIX) {
 			newError("creating unix domain socket worker on ", address).AtDebug().WriteToLog()
 
 			worker := &dsWorker{
-				address:         address,
-				proxy:           p,
+				address:         address, //监听地址
+				proxy:           p,       //
 				stream:          mss,
 				tag:             tag,
 				dispatcher:      h.mux,
@@ -105,9 +110,11 @@ func NewAlwaysOnInboundHandler(ctx context.Context, tag string, receiverConfig *
 			h.workers = append(h.workers, worker)
 		}
 	}
+	//设置了端口
 	if pl != nil {
 		for _, pr := range pl.Range {
 			for port := pr.From; port <= pr.To; port++ {
+				//tcp协议类型
 				if net.HasNetwork(nl, net.Network_TCP) {
 					newError("creating stream worker on ", address, ":", port).AtDebug().WriteToLog()
 
@@ -126,7 +133,7 @@ func NewAlwaysOnInboundHandler(ctx context.Context, tag string, receiverConfig *
 					}
 					h.workers = append(h.workers, worker)
 				}
-
+				//udp协议类型
 				if net.HasNetwork(nl, net.Network_UDP) {
 					worker := &udpWorker{
 						tag:             tag,

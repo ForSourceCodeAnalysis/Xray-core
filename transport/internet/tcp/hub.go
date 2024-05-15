@@ -85,12 +85,13 @@ func ListenTCP(ctx context.Context, address net.Address, port net.Port, streamSe
 		}
 		l.authConfig = auth
 	}
-
+	//监听服务创建后，启动一个协程处理连接
 	go l.keepAccepting()
 	return l, nil
 }
 
 func (v *Listener) keepAccepting() {
+	//主循环相当于main进程，只处理连接，不处理具体的逻辑
 	for {
 		conn, err := v.listener.Accept()
 		if err != nil {
@@ -104,6 +105,7 @@ func (v *Listener) keepAccepting() {
 			}
 			continue
 		}
+		//worker进程，处理具体的逻辑
 		go func() {
 			if v.tlsConfig != nil {
 				conn = tls.Server(conn, v.tlsConfig)
