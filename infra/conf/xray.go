@@ -280,9 +280,11 @@ func (c *InboundDetourConfig) Build() (*core.InboundHandlerConfig, error) {
 	}
 
 	return &core.InboundHandlerConfig{
-		Tag:              c.Tag,
+		Tag: c.Tag,
+		//这个字段记录的是inbound里面通用的字段，比如listen,port,streamSettings等
 		ReceiverSettings: serial.ToTypedMessage(receiverSettings),
-		ProxySettings:    serial.ToTypedMessage(ts),
+		//这个字段记录是settings转化后的，与具体的协议有关
+		ProxySettings: serial.ToTypedMessage(ts),
 	}, nil
 }
 

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"log"
 	"reflect"
 	"sync"
 
@@ -100,6 +101,7 @@ func AddInboundHandler(server *Instance, config *InboundHandlerConfig) error {
 	//inboundManager就是app\proxyman\inbound\inbound.go里面的Manager
 	inboundManager := server.GetFeature(inbound.ManagerType()).(inbound.Manager)
 	//handler就是app\proxyman\inbound\inbound.go里面NewHandler()方法返回的
+	log.Println("will add inboundHandler in manager")
 	rawHandler, err := CreateObject(server, config)
 	if err != nil {
 		return err

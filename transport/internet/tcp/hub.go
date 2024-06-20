@@ -26,14 +26,16 @@ type Listener struct {
 	addConn       internet.ConnHandler
 }
 
+// 如果streamsetting设置了tcp协议类型，就会创建一个tcp监听服务
 // ListenTCP creates a new Listener based on configurations.
 func ListenTCP(ctx context.Context, address net.Address, port net.Port, streamSettings *internet.MemoryStreamConfig, handler internet.ConnHandler) (internet.Listener, error) {
 	l := &Listener{
-		addConn: handler,
+		addConn: handler, //指定连接成功后的处理方法
 	}
 	tcpSettings := streamSettings.ProtocolSettings.(*Config)
 	l.config = tcpSettings
 	if l.config != nil {
+		//streamSettings.SocketSettings是透明代理相关的内容
 		if streamSettings.SocketSettings == nil {
 			streamSettings.SocketSettings = &internet.SocketConfig{}
 		}

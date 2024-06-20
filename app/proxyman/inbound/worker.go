@@ -55,12 +55,14 @@ func getTProxyType(s *internet.MemoryStreamConfig) internet.SocketConfig_TProxyM
 	return s.SocketSettings.Tproxy
 }
 
+// 输入接收到请求后，会调用这个函数进行处理转发
 func (w *tcpWorker) callback(conn stat.Connection) {
 	ctx, cancel := context.WithCancel(w.ctx)
-	sid := session.NewID()
+	sid := session.NewID() //创建session
 	ctx = session.ContextWithID(ctx, sid)
 
 	var outbound = &session.Outbound{}
+	//这个是入站代理配置为Dokodemo-Door时为真
 	if w.recvOrigDest {
 		var dest net.Destination
 		switch getTProxyType(w.stream) {
@@ -87,6 +89,7 @@ func (w *tcpWorker) callback(conn stat.Connection) {
 			WriteCounter: w.downlinkCounter,
 		}
 	}
+
 	ctx = session.ContextWithInbound(ctx, &session.Inbound{
 		Source:  net.DestinationFromAddr(conn.RemoteAddr()),
 		Gateway: net.TCPDestination(w.address, w.port),
@@ -103,7 +106,7 @@ func (w *tcpWorker) callback(conn stat.Connection) {
 		content.SniffingRequest.RouteOnly = w.sniffingConfig.RouteOnly
 	}
 	ctx = session.ContextWithContent(ctx, content)
-
+	//ctx传递前经过处理，添加了id,outbound,inbound,content
 	if err := w.proxy.Process(ctx, net.Network_TCP, conn, w.dispatcher); err != nil {
 		newError("connection ends").Base(err).WriteToLog(session.ExportIDToError(ctx))
 	}
@@ -117,7 +120,9 @@ func (w *tcpWorker) Proxy() proxy.Inbound {
 
 func (w *tcpWorker) Start() error {
 	ctx := context.Background()
+	//启动监听服务
 	hub, err := internet.ListenTCP(ctx, w.address, w.port, w.stream, func(conn stat.Connection) {
+		//请求处理，每个请求都会启动一个协程
 		go w.callback(conn)
 	})
 	if err != nil {

@@ -5,7 +5,11 @@
 # 代码流程
 通过命令启动各种服务来实现各种功能  
 ## 配置加载  
-配置文档中的配置项定义在[这里](infra\conf\xray.go)，程序通过[Build](infra\conf\xray.go)将面向用户的配置结构转换为[程序中的配置](core\config.pb.go)结构。其实就是创建各配置/模块/服务的结构体实例。
+配置文档中的配置项定义在[这里](infra\conf\xray.go)，程序通过[Build](infra\conf\xray.go)
+```
+func (c *Config) Build() (*core.Config, error)
+```
+将面向用户的配置结构转换为[程序中的配置](core\config.pb.go)结构。其实就是创建各配置/模块/服务的结构体实例。
 ## `core.Config`结构分析  
 这个就是内核配置了，相对于配置文件中的配置，字段少了很多，当前版本在用的如下
 ```
@@ -26,7 +30,7 @@
 ```
 本质和用户配置没有太大区别，只是把很多模块移到了`App`字段中。配置加载的时候，会通过调用各模块的`Build()`方法实例化各模块，然后加入`App`中。  
 ## 服务初始化及启动
-配置加载完成后，根据`core.Config`实例化[`core.Instance`](core\xray.go)，在此过程中，程序会将`App`字段里面的配置转换成`core.Instance`里面的`Features`。启动时，`core.Instance`会调用[`Start()`](core\xray.go)方法，此方法会循环调用`Instance.Features.Start()`，所以启动时，本质上是启动了各模块的服务。
+配置加载完成后，根据`core.Config`实例化[`core.Instance`](core\xray.go)，在此过程中，程序会将`App`字段里面的配置转换成`core.Instance`里面的`Features`。启动时，`core.Instance`会调用[`Start()`](core\xray.go)方法，此方法会循环调用`Instance.Features.Start()`，所以启动时，本质上是启动了各模块的服务。 
 ### 模块列表
 要分析有哪些模块，直接看配置无法与代码对应上，需要从代码流程一步步分析  
 - `core.Config.App`  
@@ -56,7 +60,11 @@ config := &core.Config{
 	}
 ```
 - `core.Instance.Features`  
-接着程序会根据配置实例化`core.Instance`，里面的`Features`字段包含了所有模块启动所需要的东西，模块列表如下
+接着程序会调用[`initInstanceWithConfig`](core\xray.go)
+```
+func initInstanceWithConfig(config *Config, server *Instance) (bool, error) 
+```
+根据配置实例化`core.Instance`，里面的`Features`字段包含了所有模块启动所需要的东西，模块列表如下
   - [Dispatcher](app\dispatcher\default.go)
   - [InboundManager](app\proxyman\inbound\inbound.go)
   - [OutboundManager](app\proxyman\outbound\outbound.go)
@@ -70,7 +78,33 @@ config := &core.Config{
   - [Reverse](app\reverse\reverse.go)
   - [Fakedns](app\dns\fakedns\fake.go)
   - [Observatory](app\observatory\observer.go)
-  - [BurstObservatory](app\observatory\burst\burstobserver.go)
+  - [BurstObservatory](app\observatory\burst\burstobserver.go)  
+
+`core.Config`里面的`Inbound`和`Outbound`会分别通过调用[`addInboundHandlers`](core\xray.go)，[`addOutboundHandlers`](core\xray.go)
+```
+func addInboundHandlers(server *Instance, configs []*InboundHandlerConfig) error
+func addOutboundHandlers(server *Instance, configs []*OutboundHandlerConfig) error
+```
+将其添加到`InboundManager`和`OutboundManager`。
+`addInboundHandlers`执行流程如下
+1. 第一次调用`CreateObject`通过[`NewHandler`](app\proxyman\inbound\inbound.go)
+```
+func NewHandler(ctx context.Context, config *core.InboundHandlerConfig) (inbound.Handler, error)
+```
+实例化`inbound.Handler`  
+
+2. `NewHandler`会调用[`NewAlwaysOnInboundHandler`](app\proxyman\inbound\always.go)
+```
+func NewAlwaysOnInboundHandler(ctx context.Context, tag string, receiverConfig *proxyman.ReceiverConfig, proxyConfig interface{}) (*AlwaysOnInboundHandler, error)
+```
+
+3. 第二次调用`CreateObject`,这次调用就是根据具体的配置入站协议实例化对应代理结构体，并配置`worker`
+
+4. 具体协议的[`Network`](proxy\http\server.go)(以`http`为例)会返回支持的底层传输协议，配置`worker`时会用到  
+
+所以所有的配置协议都会走到[`NewAlwaysOnInboundHandler`](app\proxyman\inbound\always.go)
+
+
 ### 日志模块流程分析
 #### 配置文件结构定义
 日志配置项比较简单，配置文件配置项如下  
@@ -255,7 +289,7 @@ func (m *Manager) Start() error {
 }
 ```
 上面已经分析了，`untaggedHandler`和`taggedHandlers`都是inbound.Handler实例，是通过解析配置文件中的inbounds项生成的，如果设置了`tag`就是加入到`taggedHandlers`，反之，就加入到`untaggedHandler`。  
-`(un)taggedHandler`的值就是`AlwaysOnInboundHandler`，所以`handler.Start()`其实就是`AlwaysOnInboundHandler.Start()`
+`(un)taggedHandler`的值就是[`AlwaysOnInboundHandler`](app\proxyman\inbound\always.go)，所以`handler.Start()`其实就是`AlwaysOnInboundHandler.Start()`
 ```
 // Start implements common.Runnable.
 func (h *AlwaysOnInboundHandler) Start() error {
@@ -400,6 +434,14 @@ func ListenTCP(ctx context.Context, address net.Address, port net.Port, streamSe
 
 # 整体总结
 简单分析了下整体流程及部分模块的代码，完全掌控代码有点吃力，后面考虑根据自身需求有目标性的进行分析调整
+
+## 客户端执行流程分析
+客户端一般会配置`inbound`为`http`和`socks`服务以对接系统代理。下面以入站`http`服务，出站`vmess`协议为例，具体分析。
+按常规理解，如果我们请求一个网站`example.com`，流程如下  
+request -> client inbound http server -> client outbound vmess -> server inbound vmess -> server outbound freedom  
+
+
+
 
 
 

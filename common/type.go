@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"log"
 	"reflect"
 )
 
@@ -27,6 +28,8 @@ func RegisterConfig(config interface{}, configCreator ConfigCreator) error {
 // CreateObject creates an object by its config. The config type must be registered through RegisterConfig().
 func CreateObject(ctx context.Context, config interface{}) (interface{}, error) {
 	configType := reflect.TypeOf(config)
+	log.Println("configType is ")
+	log.Println(configType)
 	creator, found := typeCreatorRegistry[configType]
 	if !found {
 		return nil, newError(configType.String() + " is not registered").AtError()

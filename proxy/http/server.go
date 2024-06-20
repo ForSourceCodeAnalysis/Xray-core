@@ -82,6 +82,7 @@ type readerOnly struct {
 	io.Reader
 }
 
+// 这里的参数是从worker里面传过来的，包括id,outbound,inbound,content
 func (s *Server) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher) error {
 	inbound := session.InboundFromContext(ctx)
 	inbound.Name = "http"
@@ -93,10 +94,12 @@ func (s *Server) Process(ctx context.Context, network net.Network, conn stat.Con
 	reader := bufio.NewReaderSize(readerOnly{conn}, buf.Size)
 
 Start:
+	//根据policy设置握手连接超时时间
 	if err := conn.SetReadDeadline(time.Now().Add(s.policy().Timeouts.Handshake)); err != nil {
 		newError("failed to set read deadline").Base(err).WriteToLog(session.ExportIDToError(ctx))
 	}
 
+	//从连接中读取请求
 	request, err := http.ReadRequest(reader)
 	if err != nil {
 		trace := newError("failed to read http request").Base(err)
@@ -105,7 +108,7 @@ Start:
 		}
 		return trace
 	}
-
+	//账号凭据验证
 	if len(s.config.Accounts) > 0 {
 		user, pass, ok := parseBasicAuth(request.Header.Get("Proxy-Authorization"))
 		if !ok || !s.config.HasAccount(user, pass) {
@@ -117,10 +120,12 @@ Start:
 	}
 
 	newError("request to Method [", request.Method, "] Host [", request.Host, "] with URL [", request.URL, "]").WriteToLog(session.ExportIDToError(ctx))
+	//看下面出错的提示，这句应该是清除读取超时时间
 	if err := conn.SetReadDeadline(time.Time{}); err != nil {
 		newError("failed to clear read deadline").Base(err).WriteToLog(session.ExportIDToError(ctx))
 	}
-
+	//根据上面的request to Method的打印提示，request指代的是实际的请求，而非代理
+	//这是可以理解的，流量能走到这里，说明转发过来时，就知道转发给代理了
 	defaultPort := net.Port(80)
 	if strings.EqualFold(request.URL.Scheme, "https") {
 		defaultPort = net.Port(443)
@@ -145,6 +150,7 @@ Start:
 	}
 
 	keepAlive := (strings.TrimSpace(strings.ToLower(request.Header.Get("Proxy-Connection"))) == "keep-alive")
+	newError("keepAlive is [", keepAlive, "]").WriteToLog(session.ExportIDToError(ctx))
 
 	err = s.handlePlainHTTP(ctx, request, conn, dest, dispatcher)
 	if err == errWaitAnother {
